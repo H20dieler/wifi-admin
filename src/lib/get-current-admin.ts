@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type CurrentAdmin = {
@@ -6,7 +7,7 @@ export type CurrentAdmin = {
   role: "owner" | "staff";
 };
 
-export async function getCurrentAdmin(): Promise<CurrentAdmin | null> {
+export const getCurrentAdmin = cache(async (): Promise<CurrentAdmin | null> => {
   const supabase = await createClient();
 
   // Verified claims, not a raw session read — see middleware.ts for why.
@@ -28,4 +29,4 @@ export async function getCurrentAdmin(): Promise<CurrentAdmin | null> {
   }
 
   return profile as CurrentAdmin;
-}
+});
