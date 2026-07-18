@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Pencil, Trash2, Plus, Search, Settings2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Settings2, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import {
 import { formatPHP } from "@/lib/format";
 import { formatDueDate } from "@/lib/due-date";
 import { CustomerForm } from "./customer-form";
+import { MessageDialog } from "./message-dialog";
 import { deleteCustomer } from "./actions";
 import type { CustomerRow } from "./page";
 import type { Plan } from "../plans/page";
@@ -47,9 +48,11 @@ type StatusFilter = "all" | "active" | "inactive" | "overdue";
 export function CustomersTable({
   customers,
   plans,
+  messageTemplate,
 }: {
   customers: CustomerRow[];
   plans: Plan[];
+  messageTemplate: string;
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -57,6 +60,8 @@ export function CustomersTable({
   const [editingCustomer, setEditingCustomer] = useState<CustomerRow | null>(
     null,
   );
+  const [messagingCustomer, setMessagingCustomer] =
+    useState<CustomerRow | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<CustomerRow | null>(
     null,
   );
@@ -207,6 +212,15 @@ export function CustomersTable({
                       variant="ghost"
                       size="icon"
                       className="size-7"
+                      onClick={() => setMessagingCustomer(customer)}
+                    >
+                      <MessageSquare className="size-3.5" />
+                      <span className="sr-only">Message</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
                       onClick={() => openEdit(customer)}
                     >
                       <Pencil className="size-3.5" />
@@ -246,6 +260,15 @@ export function CustomersTable({
           />
         </DialogContent>
       </Dialog>
+
+      <MessageDialog
+        customer={messagingCustomer}
+        template={messageTemplate}
+        open={!!messagingCustomer}
+        onOpenChange={(open) => {
+          if (!open) setMessagingCustomer(null);
+        }}
+      />
 
       <AlertDialog
         open={!!deletingCustomer}

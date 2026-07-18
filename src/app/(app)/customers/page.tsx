@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getNextDueDate } from "@/lib/due-date";
+import { DEFAULT_MESSAGE_TEMPLATE } from "@/lib/message-template";
 import { CustomersTable } from "./customers-table";
 import type { Plan } from "../plans/page";
 
@@ -20,19 +21,25 @@ export type CustomerRow = CustomerWithPlan & { dueDate: Date | null };
 export default async function CustomersPage() {
   const supabase = await createClient();
 
-  const [{ data: customers }, { data: plans }] = await Promise.all([
-    supabase
-      .from("customers")
-      .select(
-        "id, full_name, phone, address, plan_id, billing_day, status, start_date, plans(name, price)",
-      )
-      .is("deleted_at", null)
-      .order("full_name", { ascending: true }),
-    supabase
-      .from("plans")
-      .select("id, name, speed_mbps, price")
-      .order("price", { ascending: true }),
-  ]);
+  const [{ data: customers }, { data: plans }, { data: settings }] =
+    await Promise.all([
+      supabase
+        .from("customers")
+        .select(
+          "id, full_name, phone, address, plan_id, billing_day, status, start_date, plans(name, price)",
+        )
+        .is("deleted_at", null)
+        .order("full_name", { ascending: true }),
+      supabase
+        .from("plans")
+        .select("id, name, speed_mbps, price")
+        .order("price", { ascending: true }),
+      supabase
+        .from("app_settings")
+        .select("message_template")
+        .eq("id", 1)
+        .single(),
+    ]);
 
   // Supabase's client can't know plan_id -> plans is many-to-one without
   // generated types, so it infers `plans` as an array. It's a single object
@@ -47,12 +54,21 @@ export default async function CustomersPage() {
       : null,
   }));
 
+  // Settings/Day 14 hasn't built the form to edit this yet, so a fresh
+  // install has message_template = null. Falling back here means the
+  // Message button works out of the box instead of showing "undefined".
+  const messageTemplate = settings?.message_template ?? DEFAULT_MESSAGE_TEMPLATE;
+
   return (
     <div>
       <h1 className="mb-2 text-lg font-semibold text-foreground">
         Customers
       </h1>
-      <CustomersTable customers={rows} plans={(plans as Plan[]) ?? []} />
+      <CustomersTable
+        customers={rows}
+        plans={(plans as Plan[]) ?? []}
+        messageTemplate={messageTemplate}
+      />
     </div>
   );
 }
