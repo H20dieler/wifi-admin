@@ -1,63 +1,58 @@
-import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/server";
+import { getNextDueDate } from "@/lib/due-date";
+import { CustomersTable } from "./customers-table";
+import type { Plan } from "../plans/page";
 
-const SAMPLE_ROWS = [
-  { name: "Maria Santos", plan: "Basic 25", status: "active" as const },
-  { name: "Juan Dela Cruz", plan: "Plus 50", status: "overdue" as const },
-  { name: "Ana Reyes", plan: "Basic 25", status: "active" as const },
-];
-
-const STATUS_STYLES: Record<string, string> = {
-  active: "bg-success/10 text-success",
-  overdue: "bg-destructive/10 text-destructive",
-  inactive: "bg-muted text-muted-foreground",
+export type CustomerWithPlan = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  address: string | null;
+  plan_id: string | null;
+  billing_day: number | null;
+  status: "active" | "inactive" | "overdue" | null;
+  start_date: string | null;
+  plans: { name: string | null; price: number | null } | null;
 };
 
-export default function CustomersPage() {
+export type CustomerRow = CustomerWithPlan & { dueDate: Date | null };
+
+export default async function CustomersPage() {
+  const supabase = await createClient();
+
+  const [{ data: customers }, { data: plans }] = await Promise.all([
+    supabase
+      .from("customers")
+      .select(
+        "id, full_name, phone, address, plan_id, billing_day, status, start_date, plans(name, price)",
+      )
+      .is("deleted_at", null)
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("plans")
+      .select("id, name, speed_mbps, price")
+      .order("price", { ascending: true }),
+  ]);
+
+  // Supabase's client can't know plan_id -> plans is many-to-one without
+  // generated types, so it infers `plans` as an array. It's a single object
+  // at runtime (standard PostgREST behavior for a foreign-key embed) --
+  // this goes away once `supabase gen types` is wired up for this project.
+  const rows: CustomerRow[] = (
+    (customers as unknown as CustomerWithPlan[]) ?? []
+  ).map((customer) => ({
+    ...customer,
+    dueDate: customer.billing_day
+      ? getNextDueDate(customer.billing_day)
+      : null,
+  }));
+
   return (
     <div>
       <h1 className="mb-2 text-lg font-semibold text-foreground">
         Customers
       </h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Full CRUD lands Day 5 — this previews the style against a real list.
-      </p>
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="border-b border-border px-4 py-2.5 font-medium">
-                Name
-              </th>
-              <th className="border-b border-border px-4 py-2.5 font-medium">
-                Plan
-              </th>
-              <th className="border-b border-border px-4 py-2.5 font-medium">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {SAMPLE_ROWS.map((row) => (
-              <tr key={row.name} className="border-b border-border last:border-0">
-                <td className="px-4 py-3 text-foreground">{row.name}</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {row.plan}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={cn(
-                      "rounded px-1.5 py-0.5 text-xs font-medium",
-                      STATUS_STYLES[row.status],
-                    )}
-                  >
-                    {row.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <CustomersTable customers={rows} plans={(plans as Plan[]) ?? []} />
     </div>
   );
 }
