@@ -1,16 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { sendSms } from "@/lib/sms";
-import {
-  classifyReminder,
-  getMostRecentDueDate,
-  getDaysSinceDue,
-  formatDueDate,
-  formatISODate,
-  type ReminderCase,
-} from "@/lib/due-date";
-import { DEFAULT_MESSAGE_TEMPLATE, fillTemplate } from "@/lib/message-template";
-import { formatPHP } from "@/lib/format";
+import { getMostRecentDueDate, getDaysSinceDue, formatISODate } from "@/lib/due-date";
 import { logActivity } from "@/lib/log-activity";
 
 // Cron routes do real work and read request.headers -- make sure Next
@@ -19,23 +9,9 @@ export const dynamic = "force-dynamic";
 
 type CustomerForCron = {
   id: string;
-  full_name: string | null;
-  phone: string | null;
   billing_day: number | null;
   status: "active" | "inactive" | "overdue" | null;
-  plans: { price: number | null } | null;
 };
-
-function casePrefix(reminderCase: ReminderCase): string {
-  switch (reminderCase.type) {
-    case "upcoming":
-      return `Reminder (due in ${reminderCase.daysUntilDue} days): `;
-    case "due_today":
-      return "Due today: ";
-    case "overdue":
-      return `OVERDUE (${reminderCase.daysOverdue} days): `;
-  }
-}
 
 async function hasPaidForCycle(
   supabase: ReturnType<typeof createServiceClient>,
@@ -65,18 +41,9 @@ export async function GET(request: NextRequest) {
     // there's no `authenticated` role to be in.
     const supabase = createServiceClient();
 
-    const { data: settings } = await supabase
-      .from("app_settings")
-      .select("message_template, reminder_days_before")
-      .eq("id", 1)
-      .single();
-
-    const template = settings?.message_template ?? DEFAULT_MESSAGE_TEMPLATE;
-    const reminderDaysBefore = settings?.reminder_days_before ?? 3;
-
     const { data: customers, error: customersError } = await supabase
       .from("customers")
-      .select("id, full_name, phone, billing_day, status, plans(price)")
+      .select("id, billing_day, status")
       .in("status", ["active", "overdue"])
       .is("deleted_at", null)
       .not("billing_day", "is", null);
@@ -90,59 +57,12 @@ export async function GET(request: NextRequest) {
 
     const summary = {
       customersChecked: 0,
-      remindersSent: 0,
-      remindersFailed: 0,
       statusFlipped: 0,
     };
 
     for (const customer of (customers as unknown as CustomerForCron[]) ?? []) {
       if (!customer.billing_day) continue;
       summary.customersChecked++;
-
-      // ---- Reminder SMS ----
-      const reminderCase = classifyReminder(
-        customer.billing_day,
-        reminderDaysBefore,
-      );
-
-      if (reminderCase && customer.phone) {
-        const amount =
-          customer.plans?.price != null
-            ? formatPHP(customer.plans.price)
-            : "your bill";
-
-        const body = fillTemplate(template, {
-          name: customer.full_name ?? "there",
-          amount,
-          due_date: formatDueDate(reminderCase.dueDate),
-        });
-        const message = casePrefix(reminderCase) + body;
-
-        const result = await sendSms(customer.phone, message);
-
-        if (result.success) {
-          summary.remindersSent++;
-        } else {
-          summary.remindersFailed++;
-        }
-
-        // Log the attempt either way -- a failed send is still something
-        // worth being able to see in the audit trail later.
-        await logActivity({
-          adminId: null, // no admin session in a cron -- null means "system"
-          action: "message_sent",
-          entityType: "customer",
-          entityId: customer.id,
-          before: null,
-          after: {
-            phone: customer.phone,
-            message,
-            case: reminderCase.type,
-            sms_success: result.success,
-            sms_error: result.success ? null : result.error,
-          },
-        });
-      }
 
       // ---- Overdue status flip ----
       // Only touches customers still marked 'active' -- already-overdue

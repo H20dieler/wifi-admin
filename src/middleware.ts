@@ -13,7 +13,11 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico
      * - common static image extensions
+     * - api/cron (authenticates via CRON_SECRET bearer token, not a
+     *   session -- Vercel's scheduler never carries one, so this route
+     *   would otherwise get redirected to /login before its own auth
+     *   check ever runs)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
