@@ -23,7 +23,7 @@ export function getBusinessToday(): BusinessDate {
   return { year, month, day };
 }
 
-function lastDayOfMonth(year: number, month: number): number {
+export function lastDayOfMonth(year: number, month: number): number {
   // Day 0 of "next month" is the last day of "month" (0-indexed).
   return new Date(year, month + 1, 0).getDate();
 }
@@ -165,4 +165,35 @@ export function formatISODate(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+/**
+ * The inverse of formatISODate. Deliberately not `new Date(str)` --
+ * that parses date-only strings as UTC midnight, which shifts to the
+ * wrong calendar day in negative-UTC-offset timezones. Splitting and
+ * using the local Date constructor matches how every other date in this
+ * file is built.
+ */
+export function parseISODate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * One billing cycle after a given due date -- not "next due date from
+ * today" (that's getNextDueDate). Used when a payment is recorded: the
+ * new row's due date is exactly one month after the one just paid,
+ * clamped to that month's real length, regardless of what today happens
+ * to be.
+ */
+export function getNextCycleDueDate(currentDueDate: Date, billingDay: number): Date {
+  const year = currentDueDate.getFullYear();
+  const month = currentDueDate.getMonth();
+
+  const nextMonth = month + 1;
+  const nextYear = year + Math.floor(nextMonth / 12);
+  const normalizedMonth = nextMonth % 12;
+  const clampedDay = Math.min(billingDay, lastDayOfMonth(nextYear, normalizedMonth));
+
+  return new Date(nextYear, normalizedMonth, clampedDay);
 }

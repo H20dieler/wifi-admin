@@ -188,7 +188,12 @@ export function CustomersTable({
                 className="border-b border-border last:border-0"
               >
                 <td className="px-4 py-3 text-foreground">
-                  {customer.full_name}
+                  <Link
+                    href={`/customers/${customer.id}`}
+                    className="hover:underline"
+                  >
+                    {customer.full_name}
+                  </Link>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {customer.plans?.name ?? "—"}

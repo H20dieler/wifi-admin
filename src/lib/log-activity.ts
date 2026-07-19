@@ -2,8 +2,8 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type LogActivityParams = {
-  adminId: string;
-  action: "created" | "updated" | "deleted";
+  adminId: string | null;
+  action: "created" | "updated" | "deleted" | "payment_recorded" | "message_sent";
   entityType: string;
   entityId: string | null;
   before?: Record<string, unknown> | null;

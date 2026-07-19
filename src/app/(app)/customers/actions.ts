@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentAdmin } from "@/lib/get-current-admin";
 import { logActivity } from "@/lib/log-activity";
+import { ensureCurrentCyclePayment } from "@/lib/payments";
 import { customerSchema } from "@/lib/validations/customer";
 
 export type ActionState = {
@@ -101,6 +102,37 @@ export async function saveCustomer(
         before: null,
         after,
       });
+
+      // A brand-new customer needs a first payment row to exist before
+      // Day 7's "Record payment" flow has anything to act on. Without a
+      // plan there's no amount to bill, so this is skipped in that case --
+      // Plans can be assigned later via edit, which won't retroactively
+      // create one (only creation does).
+      if (parsed.data.plan_id && parsed.data.billing_day) {
+        const { data: plan } = await supabase
+          .from("plans")
+          .select("price")
+          .eq("id", parsed.data.plan_id)
+          .single();
+
+        const paymentRow = await ensureCurrentCyclePayment(
+          supabase,
+          after.id,
+          parsed.data.billing_day,
+          plan?.price ?? null,
+        );
+
+        if (paymentRow) {
+          await logActivity({
+            adminId: admin.id,
+            action: "created",
+            entityType: "payment",
+            entityId: paymentRow.id,
+            before: null,
+            after: paymentRow,
+          });
+        }
+      }
     }
 
     revalidatePath("/customers");

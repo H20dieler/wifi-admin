@@ -11,6 +11,7 @@ import {
 } from "@/lib/due-date";
 import { DEFAULT_MESSAGE_TEMPLATE, fillTemplate } from "@/lib/message-template";
 import { formatPHP } from "@/lib/format";
+import { logActivity } from "@/lib/log-activity";
 
 // Cron routes do real work and read request.headers -- make sure Next
 // never tries to statically evaluate this at build time.
@@ -127,20 +128,18 @@ export async function GET(request: NextRequest) {
 
         // Log the attempt either way -- a failed send is still something
         // worth being able to see in the audit trail later.
-        await supabase.from("activity_logs").insert({
-          admin_id: null, // no admin session in a cron -- null means "system"
+        await logActivity({
+          adminId: null, // no admin session in a cron -- null means "system"
           action: "message_sent",
-          entity_type: "customer",
-          entity_id: customer.id,
-          details: {
-            before: null,
-            after: {
-              phone: customer.phone,
-              message,
-              case: reminderCase.type,
-              sms_success: result.success,
-              sms_error: result.success ? null : result.error,
-            },
+          entityType: "customer",
+          entityId: customer.id,
+          before: null,
+          after: {
+            phone: customer.phone,
+            message,
+            case: reminderCase.type,
+            sms_success: result.success,
+            sms_error: result.success ? null : result.error,
           },
         });
       }
@@ -162,15 +161,13 @@ export async function GET(request: NextRequest) {
 
             if (!updateError) {
               summary.statusFlipped++;
-              await supabase.from("activity_logs").insert({
-                admin_id: null,
+              await logActivity({
+                adminId: null,
                 action: "updated",
-                entity_type: "customer",
-                entity_id: customer.id,
-                details: {
-                  before: { status: "active" },
-                  after: { status: "overdue" },
-                },
+                entityType: "customer",
+                entityId: customer.id,
+                before: { status: "active" },
+                after: { status: "overdue" },
               });
             }
           }
