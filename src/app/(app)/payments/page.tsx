@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getEffectivePaymentStatus } from "@/lib/effective-status";
 import { PaymentsTable } from "./payments-table";
 
 export type PaymentWithCustomer = {
@@ -13,6 +14,10 @@ export type PaymentWithCustomer = {
   customers: { full_name: string | null } | null;
 };
 
+export type PaymentRow = PaymentWithCustomer & {
+  effectiveStatus: "paid" | "due" | "overdue" | "partial";
+};
+
 export default async function PaymentsPage() {
   const supabase = await createClient();
 
@@ -25,7 +30,15 @@ export default async function PaymentsPage() {
 
   // Same many-to-one embed inference gap as customers -> plans (Day 5):
   // Supabase's un-generated types guess `customers` is an array here too.
-  const rows = (payments as unknown as PaymentWithCustomer[]) ?? [];
+  const baseRows = (payments as unknown as PaymentWithCustomer[]) ?? [];
+
+  // Nothing (not even the cron) ever writes payments.status from 'due' to
+  // 'overdue' -- computed fresh on every load so the badge is never stale
+  // between cron runs, without writing anything back to the DB.
+  const rows: PaymentRow[] = baseRows.map((payment) => ({
+    ...payment,
+    effectiveStatus: getEffectivePaymentStatus(payment.status, payment.due_date),
+  }));
 
   return (
     <div>

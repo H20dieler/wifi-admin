@@ -4,8 +4,12 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { formatPHP } from "@/lib/format";
+import {
+  getEffectivePaymentStatus,
+  getEffectiveCustomerStatus,
+} from "@/lib/effective-status";
 import { PaymentTimeline } from "./payment-timeline";
-import type { PaymentWithCustomer } from "../../payments/page";
+import type { PaymentRow } from "../../payments/page";
 
 const STATUS_VARIANT: Record<
   string,
@@ -47,14 +51,29 @@ export default async function CustomerDetailPage({
     price: number | null;
   } | null;
 
+  type RawPayment = Omit<PaymentRow, "customers" | "effectiveStatus">;
+  const rawPayments = (payments as unknown as RawPayment[]) ?? [];
+
   // RecordPaymentDialog expects the customers(full_name) embed shape it
   // gets on the Payments page -- attaching it here rather than forking a
-  // second dialog component for one field's difference.
-  const paymentRows: PaymentWithCustomer[] = ((payments as unknown[]) ?? []).map(
-    (p) => ({
-      ...(p as Omit<PaymentWithCustomer, "customers">),
-      customers: { full_name: customer.full_name },
-    }),
+  // second dialog component for one field's difference. Same effective-
+  // status treatment as the Payments page: not explicitly named in the
+  // brief, but this page shows the exact same payment rows and customer
+  // status, and leaving them stale here while fixed there would just move
+  // the inconsistency rather than resolve it.
+  const paymentRows: PaymentRow[] = rawPayments.map((p) => ({
+    ...p,
+    customers: { full_name: customer.full_name },
+    effectiveStatus: getEffectivePaymentStatus(p.status, p.due_date),
+  }));
+
+  // Payments are already ordered by due_date desc, so the first row (if
+  // any) is the most recent -- exactly what getEffectiveCustomerStatus
+  // needs, no extra query required here.
+  const mostRecentPayment = rawPayments[0] ?? null;
+  const effectiveCustomerStatus = getEffectiveCustomerStatus(
+    customer.status,
+    mostRecentPayment,
   );
 
   return (
@@ -73,8 +92,8 @@ export default async function CustomerDetailPage({
             <h1 className="text-lg font-semibold text-foreground">
               {customer.full_name}
             </h1>
-            <Badge variant={STATUS_VARIANT[customer.status ?? ""] ?? "default"}>
-              {customer.status ?? "unknown"}
+            <Badge variant={STATUS_VARIANT[effectiveCustomerStatus] ?? "default"}>
+              {effectiveCustomerStatus}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">

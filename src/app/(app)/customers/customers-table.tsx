@@ -75,7 +75,7 @@ export function CustomersTable({
         query === "" ||
         (customer.full_name ?? "").toLowerCase().includes(query);
       const matchesStatus =
-        statusFilter === "all" || customer.status === statusFilter;
+        statusFilter === "all" || customer.effectiveStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [customers, search, statusFilter]);
@@ -207,8 +207,8 @@ export function CustomersTable({
                   {customer.dueDate ? formatDueDate(customer.dueDate) : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={STATUS_VARIANT[customer.status ?? ""] ?? "default"}>
-                    {customer.status ?? "unknown"}
+                  <Badge variant={STATUS_VARIANT[customer.effectiveStatus] ?? "default"}>
+                    {customer.effectiveStatus}
                   </Badge>
                 </td>
                 <td className="px-4 py-3">

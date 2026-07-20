@@ -18,7 +18,7 @@ import { formatPHP } from "@/lib/format";
 import { formatDueDate, parseISODate } from "@/lib/due-date";
 import { RecordPaymentDialog } from "./record-payment-dialog";
 import { generateMissingPayments } from "./actions";
-import type { PaymentWithCustomer } from "./page";
+import type { PaymentRow } from "./page";
 
 const STATUS_VARIANT: Record<
   string,
@@ -32,19 +32,19 @@ const STATUS_VARIANT: Record<
 
 type StatusFilter = "all" | "paid" | "due" | "overdue" | "partial";
 
-export function PaymentsTable({ payments }: { payments: PaymentWithCustomer[] }) {
+export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [recordingPayment, setRecordingPayment] =
-    useState<PaymentWithCustomer | null>(null);
+    useState<PaymentRow | null>(null);
   const [isPending, startTransition] = useTransition();
   const [generateMessage, setGenerateMessage] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return payments.filter((payment) => {
       const matchesStatus =
-        statusFilter === "all" || payment.status === statusFilter;
+        statusFilter === "all" || payment.effectiveStatus === statusFilter;
       const matchesFrom = !fromDate || payment.due_date >= fromDate;
       const matchesTo = !toDate || payment.due_date <= toDate;
       return matchesStatus && matchesFrom && matchesTo;
@@ -189,13 +189,15 @@ export function PaymentsTable({ payments }: { payments: PaymentWithCustomer[] })
                     : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={STATUS_VARIANT[payment.status] ?? "default"}>
-                    {payment.status}
+                  <Badge
+                    variant={STATUS_VARIANT[payment.effectiveStatus] ?? "default"}
+                  >
+                    {payment.effectiveStatus}
                   </Badge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end">
-                    {payment.status !== "paid" ? (
+                    {payment.effectiveStatus !== "paid" ? (
                       <Button
                         variant="ghost"
                         size="sm"
