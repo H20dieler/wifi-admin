@@ -1,4 +1,5 @@
-import { login } from "./actions";
+import { Wifi } from "lucide-react";
+import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
   searchParams,
@@ -8,67 +9,50 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-semibold text-foreground">
-            WiFi Admin
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in to continue
+    <main className="flex min-h-screen">
+      {/* The "cover" -- echoes the in-app sidebar's tone so sign-in reads
+          as the same product, not a generic auth screen bolted on. */}
+      <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-sidebar px-10 py-10 text-sidebar-foreground md:flex">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to bottom, transparent, transparent 31px, rgba(241,233,216,0.06) 32px)",
+          }}
+        />
+        <div className="relative flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+          <Wifi className="size-5 text-sidebar-primary" />
+          WiFi Admin
+        </div>
+        <div className="relative max-w-xs space-y-2">
+          <p className="font-mono text-xs uppercase tracking-wide text-sidebar-foreground/50">
+            Customer &amp; billing ledger
+          </p>
+          <p className="text-sm text-sidebar-foreground/70">
+            Customers, payments, inventory, and documents — one collection
+            book, digitized.
           </p>
         </div>
+      </div>
 
-        <form action={login} className="space-y-4">
-          <div className="space-y-2">
-            <label
-              htmlFor="email"
-              className="text-sm font-medium text-foreground"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-            />
+      {/* The "page" -- where you actually sign in. */}
+      <div className="flex flex-1 items-center justify-center bg-background px-6 py-12">
+        <div className="w-full max-w-sm">
+          <div className="mb-6 flex items-center justify-center gap-2 text-lg font-semibold text-foreground md:hidden">
+            <Wifi className="size-5 text-primary" />
+            WiFi Admin
           </div>
 
-          <div className="space-y-2">
-            <label
-              htmlFor="password"
-              className="text-sm font-medium text-foreground"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error === "invalid-credentials"
-                ? "Incorrect email or password."
-                : "Enter both an email and a password."}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h1 className="mb-1 text-lg font-semibold text-foreground">
+              Sign in
+            </h1>
+            <p className="mb-5 text-sm text-muted-foreground">
+              Enter your admin credentials to continue.
             </p>
-          )}
-
-          <button
-            type="submit"
-            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Sign in
-          </button>
-        </form>
+            <LoginForm error={error} />
+          </div>
+        </div>
       </div>
     </main>
   );

@@ -206,3 +206,15 @@ export function formatMonthYear(date: Date): string {
     year: "numeric",
   }).format(date);
 }
+
+/**
+ * Today as YYYY-MM-DD, computed once server-side. Used for cheap string
+ * comparisons against due_date columns (e.g. the Calendar page's
+ * upcoming/due-today/overdue bucketing) without re-deriving "today" on
+ * the client, which would use the viewer's own device clock/timezone
+ * instead of Manila time.
+ */
+export function getBusinessTodayISO(): string {
+  const { year, month, day } = getBusinessToday();
+  return formatISODate(new Date(year, month, day));
+}
