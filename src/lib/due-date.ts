@@ -197,3 +197,12 @@ export function getNextCycleDueDate(currentDueDate: Date, billingDay: number): D
 
   return new Date(nextYear, normalizedMonth, clampedDay);
 }
+
+/** "July 2026" -- used for the Payments page's month-filter labels. */
+export function formatMonthYear(date: Date): string {
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: BUSINESS_TIMEZONE,
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}

@@ -11,6 +11,7 @@ export type PaymentWithCustomer = {
   status: "paid" | "due" | "overdue" | "partial";
   method: string | null;
   notes: string | null;
+  amount_received: number | null;
   customers: { full_name: string | null } | null;
 };
 
@@ -24,7 +25,7 @@ export default async function PaymentsPage() {
   const { data: payments } = await supabase
     .from("payments")
     .select(
-      "id, customer_id, amount, due_date, paid_date, status, method, notes, customers(full_name)",
+      "id, customer_id, amount, due_date, paid_date, status, method, notes, amount_received, customers(full_name)",
     )
     .order("due_date", { ascending: true });
 

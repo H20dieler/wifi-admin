@@ -1,13 +1,21 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { recordPayment, type ActionState } from "./actions";
 import type { PaymentWithCustomer } from "./page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { formatPHP } from "@/lib/format";
 import { formatDueDate } from "@/lib/due-date";
+import { PAYMENT_METHODS } from "@/lib/validations/payment";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +45,9 @@ export function RecordPaymentDialog({
     recordPayment,
     idleState,
   );
+  // Select doesn't submit via native FormData on its own, so its value is
+  // mirrored into a hidden input below rather than relied on directly.
+  const [method, setMethod] = useState<string>(PAYMENT_METHODS[0]);
 
   useEffect(() => {
     if (state.success) {
@@ -54,14 +65,45 @@ export function RecordPaymentDialog({
             Record payment — {payment.customers?.full_name}
           </DialogTitle>
           <DialogDescription>
-            {formatPHP(payment.amount)}, due{" "}
-            {formatDueDate(new Date(payment.due_date + "T00:00:00"))}. This
-            also creates next cycle&apos;s payment row.
+            {formatPHP(payment.amount)} due{" "}
+            {formatDueDate(new Date(payment.due_date + "T00:00:00"))}. Paying
+            the full amount also creates next cycle&apos;s row; a partial
+            amount leaves this cycle open.
           </DialogDescription>
         </DialogHeader>
 
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="payment_id" value={payment.id} />
+          <input type="hidden" name="method" value={method} />
+
+          <div className="space-y-1.5">
+            <Label htmlFor="amount_received">Amount received (₱)</Label>
+            <Input
+              id="amount_received"
+              name="amount_received"
+              type="number"
+              min={0.01}
+              step="0.01"
+              defaultValue={payment.amount}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="method-select">Method</Label>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger id="method-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_METHODS.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="paid_date">Paid date</Label>
@@ -71,15 +113,6 @@ export function RecordPaymentDialog({
               type="date"
               defaultValue={todayISO()}
               required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="method">Method (optional)</Label>
-            <Input
-              id="method"
-              name="method"
-              placeholder="Cash, GCash, bank transfer…"
             />
           </div>
 
@@ -104,3 +137,4 @@ export function RecordPaymentDialog({
     </Dialog>
   );
 }
+

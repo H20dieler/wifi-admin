@@ -15,7 +15,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { formatPHP } from "@/lib/format";
-import { formatDueDate, parseISODate } from "@/lib/due-date";
+import { formatDueDate, formatMonthYear, parseISODate } from "@/lib/due-date";
 import { RecordPaymentDialog } from "./record-payment-dialog";
 import { generateMissingPayments } from "./actions";
 import type { PaymentRow } from "./page";
@@ -36,10 +36,27 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [monthFilter, setMonthFilter] = useState("all");
   const [recordingPayment, setRecordingPayment] =
     useState<PaymentRow | null>(null);
   const [isPending, startTransition] = useTransition();
   const [generateMessage, setGenerateMessage] = useState<string | null>(null);
+
+  // Distinct YYYY-MM keys actually present in due_date, not a hardcoded
+  // calendar list -- derived from the full data set (not the filtered
+  // rows) so picking a month never removes other months from view.
+  const monthOptions = useMemo(() => {
+    const keys = new Set<string>();
+    for (const payment of payments) {
+      keys.add(payment.due_date.slice(0, 7));
+    }
+    return Array.from(keys)
+      .sort()
+      .map((key) => ({
+        key,
+        label: formatMonthYear(parseISODate(`${key}-01`)),
+      }));
+  }, [payments]);
 
   const filtered = useMemo(() => {
     return payments.filter((payment) => {
@@ -47,9 +64,13 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
         statusFilter === "all" || payment.effectiveStatus === statusFilter;
       const matchesFrom = !fromDate || payment.due_date >= fromDate;
       const matchesTo = !toDate || payment.due_date <= toDate;
-      return matchesStatus && matchesFrom && matchesTo;
+      // ISO due_date strings sort/prefix-match correctly as strings, so a
+      // cheap startsWith stands in for parsing dates.
+      const matchesMonth =
+        monthFilter === "all" || payment.due_date.startsWith(monthFilter);
+      return matchesStatus && matchesFrom && matchesTo && matchesMonth;
     });
-  }, [payments, statusFilter, fromDate, toDate]);
+  }, [payments, statusFilter, fromDate, toDate, monthFilter]);
 
   function handleGenerate() {
     setGenerateMessage(null);
@@ -109,6 +130,22 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
               className="w-40"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Month</Label>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All months</SelectItem>
+                {monthOptions.map((m) => (
+                  <SelectItem key={m.key} value={m.key}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="flex flex-col items-end gap-1">
@@ -143,6 +180,12 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
               <th className="border-b border-border px-4 py-2.5 font-medium">
                 Paid date
               </th>
+              <th className="border-b border-border px-4 py-2.5 text-right font-medium">
+                Received
+              </th>
+              <th className="border-b border-border px-4 py-2.5 font-medium">
+                Method
+              </th>
               <th className="border-b border-border px-4 py-2.5 font-medium">
                 Status
               </th>
@@ -155,7 +198,7 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={8}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   {payments.length === 0
@@ -188,6 +231,14 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
                     ? formatDueDate(parseISODate(payment.paid_date))
                     : "—"}
                 </td>
+                <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                  {payment.amount_received !== null
+                    ? formatPHP(payment.amount_received)
+                    : "—"}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {payment.method ?? "—"}
+                </td>
                 <td className="px-4 py-3">
                   <Badge
                     variant={STATUS_VARIANT[payment.effectiveStatus] ?? "default"}
@@ -197,7 +248,7 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end">
-                    {payment.effectiveStatus !== "paid" ? (
+                    {payment.effectiveStatus !== "paid" && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -206,10 +257,6 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
                         <CircleCheck className="size-3.5" />
                         Record payment
                       </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {payment.method ?? ""}
-                      </span>
                     )}
                   </div>
                 </td>

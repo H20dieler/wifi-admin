@@ -47,8 +47,9 @@ export async function recordPayment(
 
   const parsed = recordPaymentSchema.safeParse({
     payment_id: formData.get("payment_id"),
-    method: readOptional(formData, "method"),
+    method: formData.get("method"),
     paid_date: readOptional(formData, "paid_date") ?? todayISO,
+    amount_received: formData.get("amount_received"),
   });
 
   if (!parsed.success) {
@@ -73,12 +74,20 @@ export async function recordPayment(
 
     const beforeRow = before as unknown as PaymentWithCustomer;
 
+    // 'partial' vs 'paid' is decided here, once, from what was actually
+    // entered -- never trust a client-submitted "amount due", compare
+    // against the row's own stored `amount`. Overpaying still counts as
+    // settled; there's no change/credit tracking.
+    const resultStatus: "paid" | "partial" =
+      parsed.data.amount_received >= beforeRow.amount ? "paid" : "partial";
+
     const { data: after, error: updateError } = await supabase
       .from("payments")
       .update({
-        status: "paid",
+        status: resultStatus,
         paid_date: parsed.data.paid_date,
         method: parsed.data.method,
+        amount_received: parsed.data.amount_received,
       })
       .eq("id", parsed.data.payment_id)
       .select()
@@ -90,11 +99,17 @@ export async function recordPayment(
 
     // Create the next cycle's row, one billing period after the row just
     // paid (not "next due date from today" -- a payment recorded late
-    // shouldn't skip a cycle).
+    // shouldn't skip a cycle). Only when this submission actually
+    // settles the cycle -- a 'partial' payment leaves the current row
+    // open, so creating a new row on top of it would double-count what's
+    // still owed without tracking the relationship between the two rows.
+    // This applies whether the row went straight from 'due' to 'paid',
+    // or was already 'partial' and this submission brings it to 'paid' --
+    // resultStatus reflects the outcome of *this* submission either way.
     let nextCycleRow: PaymentRow | null = null;
     const customer = beforeRow.customers;
 
-    if (customer?.billing_day) {
+    if (resultStatus === "paid" && customer?.billing_day) {
       const paidDueDate = parseISODate(beforeRow.due_date);
       const nextDue = getNextCycleDueDate(paidDueDate, customer.billing_day);
 

@@ -11,6 +11,7 @@ export type PaymentRow = {
   status: "paid" | "due" | "overdue" | "partial";
   method: string | null;
   notes: string | null;
+  amount_received: number | null;
 };
 
 /**
