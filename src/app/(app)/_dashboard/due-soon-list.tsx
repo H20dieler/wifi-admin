@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CalendarClock } from "lucide-react";
 import { formatDueDate } from "@/lib/due-date";
 
 export type DueSoonCustomer = {
@@ -10,7 +11,8 @@ export type DueSoonCustomer = {
 export function DueSoonList({ customers }: { customers: DueSoonCustomer[] }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
-      <p className="mb-3 text-sm font-medium text-foreground">
+      <p className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <CalendarClock className="size-4 text-muted-foreground" />
         Due in the next 7 days
       </p>
       {customers.length === 0 ? (

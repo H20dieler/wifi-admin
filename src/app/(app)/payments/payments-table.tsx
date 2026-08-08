@@ -6,7 +6,6 @@ import { RefreshCw, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectTrigger,
@@ -14,21 +13,15 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { StatusBadge } from "@/components/status-badge";
+import { StatusSummaryStrip } from "@/components/status-summary-strip";
 import { formatPHP } from "@/lib/format";
 import { formatDueDate, formatMonthYear, parseISODate } from "@/lib/due-date";
 import { RecordPaymentDialog } from "./record-payment-dialog";
 import { generateMissingPayments } from "./actions";
 import type { PaymentRow } from "./page";
 
-const STATUS_VARIANT: Record<
-  string,
-  "success" | "warning" | "destructive" | "default"
-> = {
-  paid: "success",
-  due: "default",
-  overdue: "destructive",
-  partial: "warning",
-};
+const PAYMENT_STATUSES = ["paid", "due", "overdue", "partial"] as const;
 
 type StatusFilter = "all" | "paid" | "due" | "overdue" | "partial";
 
@@ -72,6 +65,21 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
     });
   }, [payments, statusFilter, fromDate, toDate, monthFilter]);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<(typeof PAYMENT_STATUSES)[number], number> = {
+      paid: 0,
+      due: 0,
+      overdue: 0,
+      partial: 0,
+    };
+    for (const payment of payments) {
+      if (payment.effectiveStatus in counts) {
+        counts[payment.effectiveStatus as keyof typeof counts]++;
+      }
+    }
+    return counts;
+  }, [payments]);
+
   function handleGenerate() {
     setGenerateMessage(null);
     startTransition(async () => {
@@ -90,6 +98,13 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
 
   return (
     <div>
+      <StatusSummaryStrip
+        statuses={PAYMENT_STATUSES}
+        counts={statusCounts}
+        activeFilter={statusFilter}
+        onSelect={setStatusFilter}
+      />
+
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
@@ -240,11 +255,7 @@ export function PaymentsTable({ payments }: { payments: PaymentRow[] }) {
                   {payment.method ?? "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge
-                    variant={STATUS_VARIANT[payment.effectiveStatus] ?? "default"}
-                  >
-                    {payment.effectiveStatus}
-                  </Badge>
+                  <StatusBadge status={payment.effectiveStatus} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end">

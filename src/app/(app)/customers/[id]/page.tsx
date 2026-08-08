@@ -2,23 +2,15 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { formatPHP } from "@/lib/format";
 import {
   getEffectivePaymentStatus,
   getEffectiveCustomerStatus,
 } from "@/lib/effective-status";
 import { PaymentTimeline } from "./payment-timeline";
+import { CustomerDocuments, type DocumentItem } from "./customer-documents";
 import type { PaymentRow } from "../../payments/page";
-
-const STATUS_VARIANT: Record<
-  string,
-  "success" | "warning" | "destructive" | "default"
-> = {
-  active: "success",
-  inactive: "default",
-  overdue: "destructive",
-};
 
 export default async function CustomerDetailPage({
   params,
@@ -45,6 +37,37 @@ export default async function CustomerDetailPage({
     .select("id, customer_id, amount, due_date, paid_date, status, method, notes")
     .eq("customer_id", id)
     .order("due_date", { ascending: false });
+
+  const { data: documentRows } = await supabase
+    .from("customer_documents")
+    .select("id, doc_type, storage_path, uploaded_at")
+    .eq("customer_id", id)
+    .order("uploaded_at", { ascending: false });
+
+  // Signed URLs only -- this bucket is private (see the Day 2 migration)
+  // and nothing in this app is allowed to construct or rely on a public
+  // link. One batched call rather than N createSignedUrl calls.
+  const paths = (documentRows ?? []).map((d) => d.storage_path);
+  const { data: signedUrlResults } =
+    paths.length > 0
+      ? await supabase.storage
+          .from("customer-documents")
+          .createSignedUrls(paths, 60 * 60)
+      : { data: [] as { path: string | null; signedUrl: string }[] };
+
+  const signedUrlByPath = new Map(
+    (signedUrlResults ?? [])
+      .filter((r) => r.path)
+      .map((r) => [r.path as string, r.signedUrl]),
+  );
+
+  const documents: DocumentItem[] = (documentRows ?? []).map((d) => ({
+    id: d.id,
+    doc_type: d.doc_type as DocumentItem["doc_type"],
+    storage_path: d.storage_path,
+    uploaded_at: d.uploaded_at,
+    signedUrl: signedUrlByPath.get(d.storage_path) ?? null,
+  }));
 
   const plan = customer.plans as unknown as {
     name: string | null;
@@ -92,9 +115,7 @@ export default async function CustomerDetailPage({
             <h1 className="text-lg font-semibold text-foreground">
               {customer.full_name}
             </h1>
-            <Badge variant={STATUS_VARIANT[effectiveCustomerStatus] ?? "default"}>
-              {effectiveCustomerStatus}
-            </Badge>
+            <StatusBadge status={effectiveCustomerStatus} />
           </div>
           <p className="text-sm text-muted-foreground">
             {plan?.name ?? "No plan"}
@@ -111,6 +132,11 @@ export default async function CustomerDetailPage({
         Payment history
       </h2>
       <PaymentTimeline payments={paymentRows} />
+
+      <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Documents
+      </h2>
+      <CustomerDocuments customerId={id} documents={documents} />
     </div>
   );
 }

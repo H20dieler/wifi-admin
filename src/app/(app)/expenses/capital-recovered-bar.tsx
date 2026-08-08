@@ -1,3 +1,4 @@
+import { TrendingUp } from "lucide-react";
 import { formatPHP } from "@/lib/format";
 
 export function CapitalRecoveredBar({
@@ -14,7 +15,8 @@ export function CapitalRecoveredBar({
   return (
     <div className="mb-6 rounded-lg border border-border bg-card p-4">
       <div className="mb-2 flex items-baseline justify-between">
-        <span className="text-sm font-medium text-foreground">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <TrendingUp className="size-4 text-muted-foreground" />
           Capital recovered
         </span>
         <span className="font-mono text-lg font-semibold text-foreground">

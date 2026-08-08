@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Users, Wallet } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/get-current-admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -175,11 +176,16 @@ export default async function HomePage() {
       <h1 className="mb-2 text-lg font-semibold text-foreground">Home</h1>
 
       <div className="grid grid-cols-2 gap-4">
-        <StatCard label="Active customers" value={String(activeCount)} />
+        <StatCard
+          label="Active customers"
+          value={String(activeCount)}
+          icon={Users}
+        />
         <StatCard
           label="This month"
           value={formatPHP(collectedThisMonth)}
           footnote={`of ${formatPHP(expectedThisMonth)} expected`}
+          icon={Wallet}
         />
       </div>
 

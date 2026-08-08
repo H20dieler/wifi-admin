@@ -1,3 +1,5 @@
+import { Activity } from "lucide-react";
+
 const ACTION_VERB: Record<string, string> = {
   created: "added",
   updated: "updated",
@@ -43,7 +45,8 @@ function timeAgo(isoTimestamp: string): string {
 export function ActivityFeed({ entries }: { entries: ActivityLogEntry[] }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
-      <p className="mb-3 text-sm font-medium text-foreground">
+      <p className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <Activity className="size-4 text-muted-foreground" />
         Recent activity
       </p>
       {entries.length === 0 ? (

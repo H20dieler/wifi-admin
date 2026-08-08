@@ -5,7 +5,6 @@ import { Pencil, Trash2, Plus, Search, Settings2, MessageSquare } from "lucide-r
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectTrigger,
@@ -29,6 +28,8 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { StatusBadge } from "@/components/status-badge";
+import { StatusSummaryStrip } from "@/components/status-summary-strip";
 import { formatPHP } from "@/lib/format";
 import { formatDueDate } from "@/lib/due-date";
 import { CustomerForm } from "./customer-form";
@@ -37,11 +38,7 @@ import { deleteCustomer } from "./actions";
 import type { CustomerRow } from "./page";
 import type { Plan } from "../plans/page";
 
-const STATUS_VARIANT: Record<string, "success" | "warning" | "destructive" | "default"> = {
-  active: "success",
-  inactive: "default",
-  overdue: "destructive",
-};
+const CUSTOMER_STATUSES = ["active", "overdue", "inactive"] as const;
 
 type StatusFilter = "all" | "active" | "inactive" | "overdue";
 
@@ -80,6 +77,20 @@ export function CustomersTable({
     });
   }, [customers, search, statusFilter]);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<(typeof CUSTOMER_STATUSES)[number], number> = {
+      active: 0,
+      overdue: 0,
+      inactive: 0,
+    };
+    for (const customer of customers) {
+      if (customer.effectiveStatus in counts) {
+        counts[customer.effectiveStatus as keyof typeof counts]++;
+      }
+    }
+    return counts;
+  }, [customers]);
+
   function openCreate() {
     setEditingCustomer(null);
     setDialogOpen(true);
@@ -105,6 +116,13 @@ export function CustomersTable({
 
   return (
     <div>
+      <StatusSummaryStrip
+        statuses={CUSTOMER_STATUSES}
+        counts={statusCounts}
+        activeFilter={statusFilter}
+        onSelect={setStatusFilter}
+      />
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
@@ -207,9 +225,7 @@ export function CustomersTable({
                   {customer.dueDate ? formatDueDate(customer.dueDate) : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant={STATUS_VARIANT[customer.effectiveStatus] ?? "default"}>
-                    {customer.effectiveStatus}
-                  </Badge>
+                  <StatusBadge status={customer.effectiveStatus} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
