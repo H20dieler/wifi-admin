@@ -14,6 +14,7 @@ const ENTITY_LABEL: Record<string, string> = {
   payment: "a payment",
   expense: "an expense",
   inventory_item: "an inventory item",
+  customer_document: "a document",
 };
 
 export type ActivityLogEntry = {

@@ -8,7 +8,6 @@ import {
   CreditCard,
   Wallet,
   Package,
-  FileText,
   Calendar,
   History,
   type LucideIcon,
@@ -28,7 +27,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Payments", href: "/payments", icon: CreditCard, ownerOnly: false },
   { label: "Expenses", href: "/expenses", icon: Wallet, ownerOnly: true },
   { label: "Inventory", href: "/inventory", icon: Package, ownerOnly: false },
-  { label: "Documents", href: "/documents", icon: FileText, ownerOnly: false },
   { label: "Calendar", href: "/calendar", icon: Calendar, ownerOnly: false },
   {
     label: "Activity log",

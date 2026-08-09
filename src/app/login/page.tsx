@@ -20,6 +20,9 @@ export default async function LoginPage({
               "repeating-linear-gradient(to bottom, transparent, transparent 31px, rgba(241,233,216,0.06) 32px)",
           }}
         />
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <Wifi className="size-72 text-primary/[0.13]" strokeWidth={1} />
+        </div>
         <div className="relative flex items-center gap-2 text-[15px] font-semibold tracking-tight">
           <Wifi className="size-5 text-sidebar-primary" />
           WiFi Admin

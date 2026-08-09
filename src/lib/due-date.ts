@@ -218,3 +218,33 @@ export function getBusinessTodayISO(): string {
   const { year, month, day } = getBusinessToday();
   return formatISODate(new Date(year, month, day));
 }
+
+/** "Jul 15, 2026, 2:30 PM" -- full timestamp display, e.g. the Activity Log. */
+export function formatDateTime(date: Date): string {
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: BUSINESS_TIMEZONE,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+/**
+ * The Manila calendar date (YYYY-MM-DD) a timestamptz falls on, for
+ * comparing a `created_at` column against a plain date-range filter the
+ * same way due_date comparisons already work elsewhere.
+ */
+export function toBusinessDateISO(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
